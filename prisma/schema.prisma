@@ -1,0 +1,151 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  ACTIVE 
+  BLOCKED
+  DELETED
+}
+
+enum OrderStatus {
+  PENDING
+  SUCCESS
+  CANCELED
+}
+
+enum OrderSide {
+  BUY
+  SELL
+}
+
+enum OrderType {
+  MARKET 
+  LIMIT
+  STOP
+}
+
+enum Cryptos {
+  BTC
+  ETH
+  SOL
+  USDT
+}
+
+enum EventType {
+   CREATED
+   PARTIALLY_FILLED 
+   FILLED 
+   CANCELLED 
+   REJECTED
+}
+
+model User {
+  id Int @id @default(autoincrement()) 
+  email String @unique
+  password String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  status UserStatus @default(ACTIVE)
+
+  credentials ExchangeCredential[]
+  orders OrderCommand[]
+  orderEvents OrderEvent[]
+  priceAlerts PriceAlert[]
+  @@index([email])
+}
+
+model ExchangeCredential {
+  id Int @id @default(autoincrement())
+  userId Int
+  user User @relation(fields: [userId] , references: [id] , onDelete: Cascade)
+
+  exchange String
+  apiKey String 
+  secretKey String
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId,exchange])
+}
+
+model OrderCommand {
+  id Int @id @default(autoincrement())
+  userId Int
+  user User @relation(fields: [userId] , references: [id] , onDelete: Cascade)
+
+  exchange String 
+  clientOrderId String @unique
+  exchangeOrderId String @unique
+
+  quantity Decimal
+  price Decimal?
+  stopPrice Decimal?
+
+  status OrderStatus @default(PENDING)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orderEvents OrderEvent[]
+
+  symbol String
+  side OrderSide
+  type OrderType
+}
+
+model OrderEvent {
+  id Int @id @default(autoincrement())
+
+  userId Int
+  user User @relation(fields: [userId] , references: [id] , onDelete: Cascade )
+
+  orderId Int
+  order OrderCommand @relation(fields: [orderId] , references: [id], onDelete: Cascade)
+
+  eventType EventType
+
+  price Decimal?
+  quantity Decimal?
+  filledQuantity Decimal?
+  commission Decimal?
+
+  exchangeTime DateTime
+  createdAt DateTime @default(now())
+
+  
+  @@index([orderId])
+  @@index([eventType])
+  @@index([exchangeTime])
+}
+
+model PriceAlert {
+  id          Int   @id @default(autoincrement())
+
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  exchange    String   // BINANCE
+  symbol      String
+  triggerPrice Decimal
+  direction   String   // ABOVE, BELOW
+
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  triggeredAt DateTime?
+
+  @@index([userId, status])
+  @@index([symbol])
+}
