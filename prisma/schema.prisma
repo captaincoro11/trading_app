@@ -37,7 +37,7 @@ enum OrderType {
 }
 
 enum Cryptos {
-  BTC
+  BTCUSDT
   ETH
   SOL
   USDT

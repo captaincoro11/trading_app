@@ -23,94 +23,92 @@ export async function POST (req : Request) {
             return new NextResponse("Invalid input" , {status : 400});
         }
 
-        const userEmail = req.headers.get('x-user-email');
-        if(!userEmail) return new NextResponse("User Not Authneticated" , {status : 401});
+        const {symbol , side , type , quantity , price , clientOrderId} = parsedOrderData;
 
-        const userDetails = await prisma.user.findUnique({
-            where : {
-                email : userEmail
-            }
+        if(type === "LIMIT" && !price) return NextResponse.json({
+          message : "Price is needed for limit orders"
+        }, {
+          status : 400
         });
 
-        if(!userDetails) return new NextResponse("User not found", { status: 404 });
+        if(type === "MARKET" && price) return NextResponse.json({
+          message : "Price is not needed for market orders"
+        } , {
+          status : 400
+        });
+
+        const userEmail = req.headers.get("x-user-email");
+
+        if(!userEmail) return NextResponse.json({
+          message : "User Not Authenticated"
+        },{
+          status : 400
+        });
+
+        const userDetails = await prisma.user.findFirst({
+          where : {
+            email : userEmail
+          }
+        });
+
+        if(!userDetails) return NextResponse.json({
+          message : "User Not Found"
+        } , {
+          status : 404
+        });
 
         if(userDetails.status === "BLOCKED") return NextResponse.json({
-            message : "User is blocked"
-        } , {status : 403});
-
+          message : "User is blocked"
+        } , {
+          status : 403
+        });
+        console.log("userEmail" , userDetails.email);
         const userExchangeDetails = await prisma.exchangeCredential.findFirst({
-            where : {
-                userId : userDetails?.id
-            }
+          where : {
+            userId : userDetails.id
+          }
+        });
+        console.log("userId" , userDetails.id);
+        console.log("userDetails ", userExchangeDetails);``
+        if(!userExchangeDetails) return NextResponse.json({
+          message : "User Exchange Details Not Present"
+        } , {
+          status : 404
         });
 
-        if(!userExchangeDetails) return NextResponse.json({
-            message : "User Exchange Not Added",
-        }, {status : 404});
+        const orderDetails = await prisma.orderCommand.create({
+          data :{
+            userId : userDetails.id,
+            exchange : userExchangeDetails.exchange, 
+            clientOrderId : clientOrderId,
+            quantity : quantity,
+            exchangeOrderId : "3",
+            price : price , 
+            symbol : symbol,
+            side : side ,
+            type : type
+          }
+        });
 
+        await orderQueue.add(
+        "orders",
+        {
+          orderId: orderDetails.id,
+        },
+        {
+          jobId: `${userDetails.id}-${clientOrderId}`, // idempotency
+          attempts: 5,
+          backoff: { type: "exponential", delay: 2000 },
+        }
+      );
 
-        const { symbol, side, type, quantity, price, clientOrderId } = parsedOrderData;
+      return NextResponse.json({
+        message : "Your order has been placed successfully",
+        orderId : orderDetails.id
+      } , {
+        status : 201
+      });
 
-        if(type === "LIMIT" && price === undefined) return NextResponse.json({
-            message : "Price should be provided for limit orders"
-        },{status : 403});
-
-
-        if(type === "MARKET" && price !== undefined) return NextResponse.json({
-            message : "Price should not be provided for market orders"
-        },{status : 403});
-
-
-         const idemKey = `order:idempotency:${userDetails?.id}:${clientOrderId}`;
-         const existingOrderId = await redis.get(idemKey);
-
-         if (existingOrderId) {
-         const existingOrder = await prisma.orderCommand.findUnique({
-            where: { id: Number(existingOrderId) },
-         });
-
-         return NextResponse.json(existingOrder, { status: 200 });
-         }
-
-         await redis.set(idemKey, "LOCKED", { EX: 60 });
-
-          const order = await prisma.orderCommand.create({
-      data: {
-        userId : userDetails.id,
-        clientOrderId,
-        symbol : symbol,
-        side,
-        type,
-        quantity,
-        price,
-        status: "PENDING",
-        exchange: userExchangeDetails.exchange,
-        exchangeOrderId : ""
-      },
-    });
-
-    await redis.set(idemKey, String(order.id), { EX: 60 });
-
-      await orderQueue.add(
-      "place-order",
-      { orderId: order.id },
-      {
-        jobId: `${userDetails.id}:${clientOrderId}`, // idempotency via BullMQ
-        attempts: 5,
-        backoff: { type: "exponential", delay: 2000 },
-        removeOnComplete: true,
-        removeOnFail: false,
-      }
-    );
-
-
-     return NextResponse.json(
-      { orderId: order.id, status: order.status },
-      { status: 201 }
-    );
-
-
-        
 
     } catch(err) {
          console.error("Place order failed:", err);

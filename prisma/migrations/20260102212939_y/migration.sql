@@ -11,7 +11,7 @@ CREATE TYPE "OrderSide" AS ENUM ('BUY', 'SELL');
 CREATE TYPE "OrderType" AS ENUM ('MARKET', 'LIMIT', 'STOP');
 
 -- CreateEnum
-CREATE TYPE "Cryptos" AS ENUM ('BTC', 'ETH', 'SOL', 'USDT');
+CREATE TYPE "Cryptos" AS ENUM ('BTCUSDT', 'ETH', 'SOL', 'USDT');
 
 -- CreateEnum
 CREATE TYPE "EventType" AS ENUM ('CREATED', 'PARTIALLY_FILLED', 'FILLED', 'CANCELLED', 'REJECTED');
@@ -53,7 +53,7 @@ CREATE TABLE "OrderCommand" (
     "status" "OrderStatus" NOT NULL DEFAULT 'PENDING',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "symbol" "Cryptos" NOT NULL,
+    "symbol" TEXT NOT NULL,
     "side" "OrderSide" NOT NULL,
     "type" "OrderType" NOT NULL,
 

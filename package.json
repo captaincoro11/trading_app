@@ -5,12 +5,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "worker:orders": "ts-node lib/queue/orderWorker.ts",
+   "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.2.0",
     "@prisma/client": "^7.2.0",
+    "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.66.4",
     "class-variance-authority": "^0.7.1",
@@ -23,12 +25,14 @@
     "pg": "^8.16.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    
     "redis": "^5.10.0",
     "tailwind-merge": "^3.4.0",
     "zod": "^4.3.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/axios": "^0.9.36",
     "@types/bcrypt": "^6.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.19.27",

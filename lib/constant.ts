@@ -1,0 +1,1 @@
+export const BINANCE_TESTNET_URL = " https://testnet.binance.vision/api";
